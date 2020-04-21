@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const Users = require('../mongo/models/users');
+const Products = require('../mongo/models/products');
 
 const expiresIn = 600;
 
@@ -62,19 +63,37 @@ const createUser = async (request, response) => {
   }
 };
 
-const deleteUser = (request, response) => {
-  response.send({ status: 'ok', message: 'User deleted' });
+const deleteUser = async (request, response) => {
+  try {
+    const { userId } = request.body;
+
+    if (!userId) {
+      throw new Error('Missing param userId');
+    }
+
+    await Users.findByIdAndDelete(userId);
+    await Products.deleteMany({ user: userId });
+    response.send({ status: 'ok', message: 'User deleted' });
+  } catch (error) {
+    response.status(500).send({ status: 'Error', message: error.message });
+  }
 };
 
-const getUsers = (request, response) => {
-  response.send({ status: 'ok', data: [] });
+const getUsers = async (request, response) => {
+  try {
+    const users = await Users.find().select({ password: 0, data: 0 });
+    response.send({ status: 'ok', data: users });
+  } catch (error) {
+    response.status(500).send({ status: 'Error', message: error.message });
+  }
 };
 
 const updateUser = async (request, response) => {
   try {
-    const { username, email, userId } = request.body;
+    console.log('Sessiondata', request.sessionData);
+    const { username, email } = request.body;
 
-    await Users.findByIdAndUpdate(userId, {
+    await Users.findByIdAndUpdate(request.sessionData.userId, {
       username,
       email,
     });
